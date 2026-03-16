@@ -1,3 +1,4 @@
+// ─── wallet.entity.ts ───────────────────────────────────────────────────────
 import {
   Entity, PrimaryGeneratedColumn, Column,
   CreateDateColumn, OneToOne, OneToMany, JoinColumn,

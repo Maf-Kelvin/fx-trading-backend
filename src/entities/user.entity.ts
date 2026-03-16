@@ -1,3 +1,4 @@
+// ─── user.entity.ts ───────────────────────────────────────────────────────
 import {
   Entity, PrimaryGeneratedColumn, Column,
   CreateDateColumn, UpdateDateColumn, OneToMany, OneToOne,
@@ -5,6 +6,7 @@ import {
 import { Otp } from './otp.entity';
 import { Wallet } from './wallet.entity';
 import { Transaction } from './transaction.entity';
+import { UserRole } from '../common/enums';
 
 @Entity('users')
 export class User {
@@ -19,6 +21,9 @@ export class User {
 
   @Column({ default: false })
   isVerified: boolean;
+
+  @Column({ type: 'enum', enum: UserRole, default: UserRole.USER })
+  role: UserRole;
 
   @CreateDateColumn()
   createdAt: Date;

@@ -1,3 +1,5 @@
+
+// ─── index.ts ───────────────────────────────────────────────────────
 export enum Currency {
   NGN = 'NGN',
   USD = 'USD',
@@ -5,10 +7,17 @@ export enum Currency {
   GBP = 'GBP',
 }
 
+export enum UserRole {
+  USER = 'USER',
+  ADMIN = 'ADMIN',
+}
+
 export enum TransactionType {
   FUND = 'FUND',
   CONVERT = 'CONVERT',
   TRADE = 'TRADE',
+  TRANSFER_OUT = 'TRANSFER_OUT',
+  TRANSFER_IN = 'TRANSFER_IN',
 }
 
 export enum TransactionStatus {
@@ -21,6 +30,8 @@ export enum LedgerEntryType {
   FUND = 'FUND',
   CONVERT = 'CONVERT',
   TRADE = 'TRADE',
+  TRANSFER_OUT = 'TRANSFER_OUT',
+  TRANSFER_IN = 'TRANSFER_IN',
 }
 
 export enum OrderType {

@@ -1,3 +1,4 @@
+// ─── index.ts ───────────────────────────────────────────────────────
 export { User } from './user.entity';
 export { Otp } from './otp.entity';
 export { Wallet } from './wallet.entity';

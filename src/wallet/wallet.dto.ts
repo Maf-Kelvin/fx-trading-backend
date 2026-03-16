@@ -1,5 +1,5 @@
 // ─── wallet.dto.ts ────────────────────────────────────────────────────────────
-import { IsEnum, IsPositive, IsNumber, IsOptional, IsUUID } from 'class-validator';
+import { IsEnum, IsPositive, IsNumber, IsOptional, IsUUID, IsEmail } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Currency, OrderType } from '../common/enums';
 
@@ -57,6 +57,26 @@ export class TradeDto {
   @IsEnum(OrderType)
   @IsOptional()
   orderType: OrderType = OrderType.MARKET;
+
+  @ApiPropertyOptional({ example: '8a7f9b2c-1234-5678-abcd-ef0123456789' })
+  @IsUUID()
+  @IsOptional()
+  idempotencyKey?: string;
+}
+
+export class TransferDto {
+  @ApiProperty({ example: 'recipient@example.com' })
+  @IsEmail()
+  recipientEmail: string;
+
+  @ApiProperty({ enum: Currency, example: Currency.NGN })
+  @IsEnum(Currency)
+  currency: Currency;
+
+  @ApiProperty({ example: 1000 })
+  @IsNumber()
+  @IsPositive()
+  amount: number;
 
   @ApiPropertyOptional({ example: '8a7f9b2c-1234-5678-abcd-ef0123456789' })
   @IsUUID()

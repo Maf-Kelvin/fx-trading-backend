@@ -1,3 +1,4 @@
+// ─── correlation-id.middleware.ts ───────────────────────────────────────────────────────
 import { Injectable, NestMiddleware, Logger } from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
 import { v4 as uuidv4 } from 'uuid';

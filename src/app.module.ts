@@ -1,3 +1,5 @@
+// ─── app.module.ts ───────────────────────────────────────────────────────
+
 import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -13,6 +15,7 @@ import { FxModule } from './fx/fx.module';
 import { WalletModule } from './wallet/wallet.module';
 import { TransactionsModule } from './transactions/transactions.module';
 import { HealthModule } from './health/health.module';
+import { AdminModule } from './admin/admin.module';
 import { CorrelationIdMiddleware } from './common/middleware/correlation-id.middleware';
 
 @Module({
@@ -44,6 +47,7 @@ import { CorrelationIdMiddleware } from './common/middleware/correlation-id.midd
     WalletModule,
     TransactionsModule,
     HealthModule,
+    AdminModule,
   ],
 })
 export class AppModule implements NestModule {

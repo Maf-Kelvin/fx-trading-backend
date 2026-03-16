@@ -14,15 +14,15 @@ export class TransactionsController {
   constructor(private txService: TransactionsService) {}
 
   @Get()
-  @ApiOperation({ summary: 'View paginated transaction history' })
-  @ApiQuery({ name: 'page', required: false, example: 1 })
+  @ApiOperation({ summary: 'Cursor-paginated transaction history' })
+  @ApiQuery({ name: 'cursor', required: false, description: 'Cursor from previous response for next page' })
   @ApiQuery({ name: 'limit', required: false, example: 20 })
-  @ApiResponse({ status: 200, description: 'Paginated transaction history' })
+  @ApiResponse({ status: 200, description: 'Paginated transaction history with cursor' })
   getAll(
     @Request() req,
-    @Query('page') page?: number,
+    @Query('cursor') cursor?: string,
     @Query('limit') limit?: number,
   ) {
-    return this.txService.findByUser(req.user.id, { page: +page, limit: +limit });
+    return this.txService.findByUser(req.user.id, { cursor, limit: +limit });
   }
 }

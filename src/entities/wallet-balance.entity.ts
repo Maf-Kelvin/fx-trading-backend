@@ -1,3 +1,4 @@
+// ─── wallet-balance.entity.ts ───────────────────────────────────────────────────────
 import {
   Entity, PrimaryGeneratedColumn, Column,
   UpdateDateColumn, ManyToOne, JoinColumn, Unique, Index,

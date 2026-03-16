@@ -7,7 +7,7 @@ import { Controller, Get, Post, Body, UseGuards, Request } from '@nestjs/common'
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { WalletService } from './wallet.service';
-import { FundWalletDto, ConvertDto, TradeDto } from './wallet.dto';
+import { FundWalletDto, ConvertDto, TradeDto, TransferDto } from './wallet.dto';
 
 @ApiTags('wallet')
 @ApiBearerAuth()
@@ -36,6 +36,15 @@ export class WalletController {
   @ApiResponse({ status: 400, description: 'Insufficient balance or same currency' })
   convert(@Request() req, @Body() dto: ConvertDto) {
     return this.walletService.convert(req.user.id, dto);
+  }
+
+  @Post('transfer')
+  @ApiOperation({ summary: 'Transfer funds to another user by email' })
+  @ApiResponse({ status: 201, description: 'Transfer successful' })
+  @ApiResponse({ status: 400, description: 'Insufficient balance, self-transfer, or unverified recipient' })
+  @ApiResponse({ status: 404, description: 'Recipient not found' })
+  transfer(@Request() req, @Body() dto: TransferDto) {
+    return this.walletService.transfer(req.user.id, dto);
   }
 
   @Post('trade')

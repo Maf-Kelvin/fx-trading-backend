@@ -1,3 +1,4 @@
+// ─── otp.entity.ts ───────────────────────────────────────────────────────
 import {
   Entity, PrimaryGeneratedColumn, Column,
   CreateDateColumn, ManyToOne, JoinColumn,

@@ -5,12 +5,12 @@ import {
 import { DataSource, EntityManager } from 'typeorm';
 import Decimal from 'decimal.js';
 import { v4 as uuidv4 } from 'uuid';
-import { Wallet, WalletBalance, LedgerEntry, Transaction } from '../entities';
+import { Wallet, WalletBalance, LedgerEntry, Transaction, User } from '../entities';
 import { FxService } from '../fx/fx.service';
 import {
   Currency, TransactionType, TransactionStatus, LedgerEntryType,
 } from '../common/enums';
-import { ConvertDto, FundWalletDto, TradeDto } from './wallet.dto';
+import { ConvertDto, FundWalletDto, TradeDto, TransferDto } from './wallet.dto';
 
 Decimal.set({ precision: 28, rounding: Decimal.ROUND_HALF_UP });
 
@@ -41,8 +41,8 @@ export class WalletService {
   }
 
   async fund(userId: string, dto: FundWalletDto) {
-    // Idempotency check — fast path before opening a transaction
-    if (dto.idempotencyKey) {
+    // Idempotency — only check if caller explicitly provided a key
+    if (dto.idempotencyKey && typeof dto.idempotencyKey === 'string' && dto.idempotencyKey.trim()) {
       const existing = await this.dataSource.getRepository(Transaction).findOne({
         where: { idempotencyKey: dto.idempotencyKey },
       });
@@ -100,13 +100,120 @@ export class WalletService {
     });
   }
 
+  async transfer(senderId: string, dto: TransferDto) {
+    if (dto.idempotencyKey) {
+      const existing = await this.dataSource.getRepository(Transaction).findOne({
+        where: { idempotencyKey: dto.idempotencyKey },
+      });
+      if (existing) {
+        return { idempotent: true, reference: existing.reference, message: 'Duplicate request — original result returned' };
+      }
+    }
+
+    return this.dataSource.transaction(async (em) => {
+      // Resolve recipient by email
+      const recipient = await em.getRepository(User).findOne({
+        where: { email: dto.recipientEmail },
+      });
+      if (!recipient) throw new NotFoundException(`No user found with email ${dto.recipientEmail}`);
+      if (!recipient.isVerified) throw new BadRequestException('Recipient account is not verified');
+      if (recipient.id === senderId) throw new BadRequestException('Cannot transfer to yourself');
+
+      const senderWallet = await this.getWalletOrFail(em, senderId);
+      const recipientWallet = await this.getWalletOrFail(em, recipient.id);
+
+      // Lock sender balance
+      const senderBalance = await em
+        .getRepository(WalletBalance)
+        .createQueryBuilder('wb')
+        .setLock('pessimistic_write')
+        .where('wb.walletId = :wid AND wb.currency = :cur', {
+          wid: senderWallet.id, cur: dto.currency,
+        })
+        .getOne();
+
+      if (!senderBalance) throw new BadRequestException(`No ${dto.currency} balance found`);
+
+      const amt = new Decimal(dto.amount);
+      const senderBal = new Decimal(senderBalance.balance);
+      if (senderBal.lessThan(amt)) {
+        throw new BadRequestException(
+          `Insufficient balance. Available: ${senderBal.toNumber()} ${dto.currency}`,
+        );
+      }
+
+      const ref = uuidv4();
+
+      // Deduct from sender
+      await em.getRepository(WalletBalance).update(senderBalance.id, {
+        balance: senderBal.minus(amt).toFixed(6),
+      });
+
+      // Credit recipient (lazy-create if needed)
+      const recipientBalance = await this.getOrCreateBalance(em, recipientWallet.id, dto.currency);
+      await em.getRepository(WalletBalance).update(recipientBalance.id, {
+        balance: new Decimal(recipientBalance.balance).plus(amt).toFixed(6),
+      });
+
+      // Ledger entries — one per wallet
+      await em.getRepository(LedgerEntry).save([
+        em.getRepository(LedgerEntry).create({
+          walletId: senderWallet.id,
+          currency: dto.currency,
+          amount: amt.negated().toFixed(6),
+          entryType: LedgerEntryType.TRANSFER_OUT,
+          reference: ref,
+        }),
+        em.getRepository(LedgerEntry).create({
+          walletId: recipientWallet.id,
+          currency: dto.currency,
+          amount: amt.toFixed(6),
+          entryType: LedgerEntryType.TRANSFER_IN,
+          reference: ref,
+        }),
+      ]);
+
+      // Transaction records — one per user for their own history
+      await em.getRepository(Transaction).save([
+        em.getRepository(Transaction).create({
+          userId: senderId,
+          reference: ref,
+          type: TransactionType.TRANSFER_OUT,
+          status: TransactionStatus.SUCCESS,
+          fromCurrency: dto.currency,
+          amount: amt.toFixed(6),
+          idempotencyKey: dto.idempotencyKey ?? null,
+          metadata: { recipientEmail: dto.recipientEmail },
+        }),
+        em.getRepository(Transaction).create({
+          userId: recipient.id,
+          reference: `${ref}-in`,
+          type: TransactionType.TRANSFER_IN,
+          status: TransactionStatus.SUCCESS,
+          fromCurrency: dto.currency,
+          amount: amt.toFixed(6),
+          metadata: { senderEmail: (await em.getRepository(User).findOne({ where: { id: senderId } }))?.email },
+        }),
+      ]);
+
+      return {
+        message: 'Transfer successful',
+        reference: ref,
+        to: dto.recipientEmail,
+        currency: dto.currency,
+        amount: amt.toNumber(),
+      };
+    });
+  }
+
   async convert(userId: string, dto: ConvertDto) {
     if (dto.fromCurrency === dto.toCurrency) {
       throw new BadRequestException('Cannot convert to the same currency');
     }
     return this.executeExchange(
       userId, dto.fromCurrency, dto.toCurrency, dto.amount,
-      TransactionType.CONVERT, LedgerEntryType.CONVERT, {}, dto.idempotencyKey,
+      TransactionType.CONVERT, LedgerEntryType.CONVERT,
+      {}, dto.idempotencyKey || undefined,
     );
   }
 
@@ -117,7 +224,7 @@ export class WalletService {
     return this.executeExchange(
       userId, dto.fromCurrency, dto.toCurrency, dto.amount,
       TransactionType.TRADE, LedgerEntryType.TRADE,
-      { orderType: dto.orderType }, dto.idempotencyKey,
+      { orderType: dto.orderType }, dto.idempotencyKey || undefined,
     );
   }
 
@@ -131,8 +238,8 @@ export class WalletService {
     metadata: Record<string, any> = {},
     idempotencyKey?: string,
   ) {
-    // Idempotency check — fast path before opening a transaction
-    if (idempotencyKey) {
+    // Idempotency — only check if caller explicitly provided a key
+    if (idempotencyKey && typeof idempotencyKey === 'string' && idempotencyKey.trim()) {
       const existing = await this.dataSource.getRepository(Transaction).findOne({
         where: { idempotencyKey },
       });

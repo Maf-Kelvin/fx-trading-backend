@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>FX Trading — User Dashboard</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0f1117;color:#e2e8f0;min-height:100vh}
+:root{--bg:#0f1117;--card:#1a1d27;--border:#2d3148;--accent:#6366f1;--green:#10b981;--red:#ef4444;--yellow:#f59e0b;--muted:#94a3b8}
+.topbar{background:#1a1d27;border-bottom:1px solid var(--border);padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between}
+.logo{font-weight:700;font-size:18px;color:#fff}.logo span{color:var(--accent)}
+.btn-logout{background:transparent;border:1px solid var(--border);color:var(--muted);padding:6px 14px;border-radius:6px;cursor:pointer;font-size:12px}
+.btn-logout:hover{border-color:var(--red);color:var(--red)}
+
+/* Auth screens */
+.auth-wrap{max-width:440px;margin:60px auto;padding:32px;background:var(--card);border:1px solid var(--border);border-radius:16px}
+.auth-wrap h2{font-size:22px;margin-bottom:6px;text-align:center}
+.auth-wrap p.sub{font-size:13px;color:var(--muted);text-align:center;margin-bottom:24px}
+.auth-tabs{display:flex;gap:4px;margin-bottom:24px;background:#0f1117;border-radius:8px;padding:4px}
+.auth-tab{flex:1;padding:8px;text-align:center;border-radius:6px;cursor:pointer;font-size:13px;color:var(--muted);transition:.15s}
+.auth-tab.active{background:var(--accent);color:#fff}
+
+/* Main layout */
+.main{display:grid;grid-template-columns:240px 1fr;min-height:calc(100vh - 56px)}
+.sidebar{background:var(--card);border-right:1px solid var(--border);padding:20px 0}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 20px;cursor:pointer;font-size:14px;color:var(--muted);border-left:3px solid transparent;transition:.15s}
+.nav-item:hover{color:#fff;background:rgba(99,102,241,.08)}
+.nav-item.active{color:#fff;border-left-color:var(--accent);background:rgba(99,102,241,.12)}
+.content{padding:28px;overflow-y:auto}
+.page{display:none}.page.active{display:block}
+h2.page-title{font-size:20px;font-weight:600;margin-bottom:20px}
+
+/* Cards */
+.cards-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:16px;margin-bottom:28px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px}
+.card .label{font-size:11px;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px}
+.card .value{font-size:24px;font-weight:700}
+.card.ngn .value{color:var(--yellow)}.card.usd .value{color:var(--green)}
+.card.eur .value{color:#60a5fa}.card.gbp .value{color:#c084fc}
+
+/* Forms */
+.form-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:24px;margin-bottom:24px}
+.form-card h3{font-size:15px;font-weight:600;margin-bottom:18px}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.field{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+.field label{font-size:12px;color:var(--muted)}
+.field input,.field select{background:#0f1117;border:1px solid var(--border);color:#e2e8f0;padding:10px 12px;border-radius:8px;font-size:14px;outline:none;transition:.15s}
+.field input:focus,.field select:focus{border-color:var(--accent)}
+.field select option{background:#1a1d27}
+.btn{padding:10px 20px;border-radius:8px;border:none;font-size:14px;font-weight:500;cursor:pointer;transition:.15s}
+.btn-primary{background:var(--accent);color:#fff}.btn-primary:hover{background:#4f46e5}
+.btn-success{background:var(--green);color:#fff}.btn-success:hover{background:#059669}
+.btn-outline{background:transparent;border:1px solid var(--border);color:var(--muted)}.btn-outline:hover{border-color:var(--accent);color:var(--accent)}
+.btn-full{width:100%;margin-top:4px}
+.msg{padding:10px 14px;border-radius:8px;font-size:13px;margin-top:12px;display:none}
+.msg.ok{background:rgba(16,185,129,.15);color:var(--green);border:1px solid rgba(16,185,129,.3);display:block}
+.msg.err{background:rgba(239,68,68,.15);color:var(--red);border:1px solid rgba(239,68,68,.3);display:block}
+
+/* Table */
+table{width:100%;border-collapse:collapse;font-size:13px}
+thead th{text-align:left;padding:10px 14px;background:#12141e;color:var(--muted);font-weight:500;border-bottom:1px solid var(--border)}
+tbody tr{border-bottom:1px solid #1e2235}
+tbody tr:hover{background:rgba(255,255,255,.02)}
+tbody td{padding:11px 14px}
+.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600}
+.badge.SUCCESS{background:rgba(16,185,129,.15);color:var(--green)}
+.badge.PENDING{background:rgba(245,158,11,.15);color:var(--yellow)}
+.badge.FAILED{background:rgba(239,68,68,.15);color:var(--red)}
+.badge.FUND{background:rgba(96,165,250,.15);color:#60a5fa}
+.badge.CONVERT{background:rgba(167,139,250,.15);color:#a78bfa}
+.badge.TRADE{background:rgba(251,146,60,.15);color:#fb923c}
+.badge.TRANSFER_OUT{background:rgba(239,68,68,.15);color:var(--red)}
+.badge.TRANSFER_IN{background:rgba(16,185,129,.15);color:var(--green)}
+
+/* Rates */
+.rates-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px}
+.rate-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px}
+.rate-card .pair{font-size:13px;color:var(--muted);margin-bottom:6px}
+.rate-card .rate{font-size:22px;font-weight:700;color:var(--accent)}
+
+/* Cursor pagination */
+.pager{display:flex;gap:8px;align-items:center;margin-top:16px;font-size:13px;color:var(--muted)}
+.pager button{background:var(--card);border:1px solid var(--border);color:#e2e8f0;padding:5px 12px;border-radius:6px;cursor:pointer}
+.pager button:disabled{opacity:.4;cursor:default}
+
+.tabs{display:flex;gap:4px;margin-bottom:20px}
+.tab{padding:8px 18px;border-radius:8px;font-size:13px;cursor:pointer;color:var(--muted);border:1px solid transparent}
+.tab.active{background:rgba(99,102,241,.15);color:#a5b4fc;border-color:rgba(99,102,241,.3)}
+
+/* Preview box */
+.preview-box{background:#0f1117;border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:14px;font-size:13px}
+.preview-box .row{display:flex;justify-content:space-between;margin-bottom:6px;color:var(--muted)}
+.preview-box .row span:last-child{color:#e2e8f0;font-weight:500}
+.preview-box .row.total span:last-child{color:var(--green);font-size:15px;font-weight:700}
+</style>
+</head>
+<body>
+
+<!-- LOGIN SCREEN -->
+<div id="auth-screen" style="padding:20px 0">
+  <div class="auth-wrap">
+    <h2>🏦 FX<span style="color:#6366f1">Trade</span></h2>
+    <p class="sub">Multi-currency FX trading platform</p>
+
+    <div class="auth-tabs">
+      <div class="auth-tab active" id="tab-login" onclick="switchTab('login')">Sign In</div>
+      <div class="auth-tab" id="tab-register" onclick="switchTab('register')">Register</div>
+      <div class="auth-tab" id="tab-verify" onclick="switchTab('verify')">Verify OTP</div>
+    </div>
+
+    <!-- LOGIN -->
+    <div id="form-login">
+      <div class="field"><label>Email</label><input id="l-email" type="email" placeholder="you@example.com"/></div>
+      <div class="field"><label>Password</label><input id="l-pass" type="password" placeholder="••••••••"/></div>
+      <button class="btn btn-primary btn-full" onclick="doLogin()">Sign In</button>
+      <div id="l-msg" class="msg"></div>
+      <p style="text-align:center;margin-top:16px;font-size:13px;color:var(--muted)">
+        No account? <span style="color:#6366f1;cursor:pointer" onclick="switchTab('register')">Register here</span>
+      </p>
+    </div>
+
+    <!-- REGISTER -->
+    <div id="form-register" style="display:none">
+      <div class="field"><label>Email</label><input id="r-email" type="email" placeholder="you@example.com"/></div>
+      <div class="field"><label>Password</label><input id="r-pass" type="password" placeholder="Min 8 characters"/></div>
+      <button class="btn btn-primary btn-full" onclick="doRegister()">Create Account</button>
+      <div id="r-msg" class="msg"></div>
+      <p style="text-align:center;margin-top:16px;font-size:13px;color:var(--muted)">
+        Already have an account? <span style="color:#6366f1;cursor:pointer" onclick="switchTab('login')">Sign in</span>
+      </p>
+    </div>
+
+    <!-- VERIFY OTP -->
+    <div id="form-verify" style="display:none">
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px">Enter the 6-digit OTP sent to your email. Check your inbox or spam folder.</p>
+      <div class="field"><label>Email</label><input id="v-email" type="email" placeholder="you@example.com"/></div>
+      <div class="field"><label>OTP Code</label><input id="v-otp" type="text" placeholder="6-digit code" maxlength="6"/></div>
+      <button class="btn btn-primary btn-full" onclick="doVerify()">Verify Account</button>
+      <button class="btn btn-outline btn-full" style="margin-top:8px" onclick="doResend()">Resend OTP</button>
+      <div id="v-msg" class="msg"></div>
+      <p style="text-align:center;margin-top:16px;font-size:13px;color:var(--muted)">
+        Already verified? <span style="color:#6366f1;cursor:pointer" onclick="switchTab('login')">Sign in</span>
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div id="app" style="display:none">
+  <div class="topbar">
+    <div class="logo">FX<span>Trade</span></div>
+    <div style="display:flex;align-items:center;gap:12px;font-size:13px;color:var(--muted)">
+      <span id="u-email"></span>
+      <button class="btn-logout" onclick="logout()">Logout</button>
+    </div>
+  </div>
+  <div class="main">
+    <div class="sidebar">
+      <div class="nav-item active" onclick="nav('wallet')" id="nav-wallet"><span>💼</span> Wallet</div>
+      <div class="nav-item" onclick="nav('fund')" id="nav-fund"><span>💰</span> Fund Wallet</div>
+      <div class="nav-item" onclick="nav('trade')" id="nav-trade"><span>🔄</span> Convert / Trade</div>
+      <div class="nav-item" onclick="nav('transfer')" id="nav-transfer"><span>📤</span> Transfer</div>
+      <div class="nav-item" onclick="nav('history')" id="nav-history"><span>📋</span> Transactions</div>
+      <div class="nav-item" onclick="nav('rates')" id="nav-rates"><span>📈</span> FX Rates</div>
+    </div>
+    <div class="content">
+
+      <!-- WALLET -->
+      <div class="page active" id="page-wallet">
+        <h2 class="page-title">My Wallet</h2>
+        <div class="cards-row" id="balance-cards"><div style="color:var(--muted);font-size:13px">Loading...</div></div>
+      </div>
+
+      <!-- FUND -->
+      <div class="page" id="page-fund">
+        <h2 class="page-title">Fund Wallet</h2>
+        <div class="form-card" style="max-width:480px">
+          <h3>Add Funds</h3>
+          <div class="field"><label>Currency</label>
+            <select id="f-cur"><option>NGN</option><option>USD</option><option>EUR</option><option>GBP</option></select>
+          </div>
+          <div class="field"><label>Amount</label><input id="f-amt" type="number" placeholder="e.g. 50000" min="1"/></div>
+          <button class="btn btn-success btn-full" onclick="doFund()">Fund Wallet</button>
+          <div id="f-msg" class="msg"></div>
+        </div>
+      </div>
+
+      <!-- TRADE -->
+      <div class="page" id="page-trade">
+        <h2 class="page-title">Convert / Trade</h2>
+        <div class="tabs">
+          <div class="tab active" onclick="setTab('convert',this)">Convert</div>
+          <div class="tab" onclick="setTab('trade',this)">Trade (Market Order)</div>
+        </div>
+        <div class="form-card" style="max-width:520px">
+          <h3 id="trade-title">Convert Currency</h3>
+          <div class="form-row">
+            <div class="field"><label>From</label>
+              <select id="t-from" onchange="updatePreview()"><option>NGN</option><option>USD</option><option>EUR</option><option>GBP</option></select>
+            </div>
+            <div class="field"><label>To</label>
+              <select id="t-to" onchange="updatePreview()"><option>USD</option><option>NGN</option><option>EUR</option><option>GBP</option></select>
+            </div>
+          </div>
+          <div class="field"><label>Amount</label>
+            <input id="t-amt" type="number" placeholder="e.g. 1000" min="1" oninput="updatePreview()"/>
+          </div>
+          <!-- Rate preview -->
+          <div class="preview-box" id="rate-preview" style="display:none">
+            <div class="row"><span>Rate</span><span id="prev-rate">—</span></div>
+            <div class="row"><span>You spend</span><span id="prev-from">—</span></div>
+            <div class="row total"><span>You receive</span><span id="prev-to">—</span></div>
+            <div style="font-size:11px;color:var(--muted);margin-top:8px" id="prev-ts"></div>
+          </div>
+          <button class="btn btn-primary btn-full" onclick="doTrade()">Execute</button>
+          <div id="t-msg" class="msg"></div>
+        </div>
+      </div>
+
+      <!-- TRANSFER -->
+      <div class="page" id="page-transfer">
+        <h2 class="page-title">Transfer Funds</h2>
+        <div class="form-card" style="max-width:480px">
+          <h3>Send to another user</h3>
+          <div class="field"><label>Recipient Email</label><input id="tr-email" type="email" placeholder="recipient@example.com"/></div>
+          <div class="field"><label>Currency</label>
+            <select id="tr-cur"><option>NGN</option><option>USD</option><option>EUR</option><option>GBP</option></select>
+          </div>
+          <div class="field"><label>Amount</label><input id="tr-amt" type="number" placeholder="e.g. 5000" min="1"/></div>
+          <button class="btn btn-primary btn-full" onclick="doTransfer()">Send Transfer</button>
+          <div id="tr-msg" class="msg"></div>
+        </div>
+      </div>
+
+      <!-- HISTORY -->
+      <div class="page" id="page-history">
+        <h2 class="page-title">Transaction History</h2>
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden">
+          <table>
+            <thead><tr><th>Date</th><th>Type</th><th>From</th><th>To</th><th>Amount</th><th>Rate</th><th>Status</th></tr></thead>
+            <tbody id="tx-body"><tr><td colspan="7" style="text-align:center;padding:24px;color:var(--muted)">Loading...</td></tr></tbody>
+          </table>
+        </div>
+        <div class="pager">
+          <button onclick="txPrev()" id="tx-prev" disabled>← Prev</button>
+          <span id="tx-info"></span>
+          <button onclick="txNext()" id="tx-next" disabled>Next →</button>
+        </div>
+      </div>
+
+      <!-- RATES -->
+      <div class="page" id="page-rates">
+        <h2 class="page-title">FX Rates</h2>
+        <p style="font-size:13px;color:var(--muted);margin-bottom:20px">Live rates — refreshed every 60 seconds in the background. Base: NGN</p>
+        <div class="rates-grid" id="rates-grid"><div style="color:var(--muted)">Loading...</div></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+const API = 'http://localhost:3000';
+let token = localStorage.getItem('fx_token');
+let userEmail = localStorage.getItem('fx_email');
+let tradeMode = 'convert';
+let txCursorStack = [null]; // stack of cursors for back navigation
+let txCurrentCursor = null;
+let liveRates = {};
+
+function showMsg(id, text, type) {
+  const el = document.getElementById(id);
+  el.textContent = text;
+  el.className = 'msg ' + type;
+}
+
+async function api(path, method = 'GET', body = null) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = 'Bearer ' + token;
+  const r = await fetch(API + path, { method, headers, body: body ? JSON.stringify(body) : null });
+  const data = await r.json();
+  if (!r.ok) throw new Error(data.message || 'Request failed');
+  return data;
+}
+
+// ─── Auth tab switching ───────────────────────────────────────────────────────
+function switchTab(tab) {
+  ['login','register','verify'].forEach(t => {
+    document.getElementById('form-' + t).style.display = t === tab ? 'block' : 'none';
+    document.getElementById('tab-' + t).classList.toggle('active', t === tab);
+  });
+}
+
+async function doRegister() {
+  const email = document.getElementById('r-email').value.trim();
+  const password = document.getElementById('r-pass').value;
+  if (!email || !password) return showMsg('r-msg', 'Please fill all fields', 'err');
+  try {
+    await api('/auth/register', 'POST', { email, password });
+    showMsg('r-msg', 'Registration successful! Check your email for the OTP.', 'ok');
+    document.getElementById('v-email').value = email;
+    setTimeout(() => switchTab('verify'), 1500);
+  } catch (e) { showMsg('r-msg', e.message, 'err'); }
+}
+
+async function doVerify() {
+  const email = document.getElementById('v-email').value.trim();
+  const otp = document.getElementById('v-otp').value.trim();
+  if (!email || !otp) return showMsg('v-msg', 'Please fill all fields', 'err');
+  try {
+    await api('/auth/verify', 'POST', { email, otp });
+    showMsg('v-msg', 'Account verified! You can now sign in.', 'ok');
+    document.getElementById('l-email').value = email;
+    setTimeout(() => switchTab('login'), 1500);
+  } catch (e) { showMsg('v-msg', e.message, 'err'); }
+}
+
+async function doResend() {
+  const email = document.getElementById('v-email').value.trim();
+  if (!email) return showMsg('v-msg', 'Enter your email first', 'err');
+  try {
+    await api('/auth/resend-otp', 'POST', { email });
+    showMsg('v-msg', 'New OTP sent to your email!', 'ok');
+  } catch (e) { showMsg('v-msg', e.message, 'err'); }
+}
+
+async function doLogin() {
+  const email = document.getElementById('l-email').value.trim();
+  const password = document.getElementById('l-pass').value;
+  if (!email || !password) return showMsg('l-msg', 'Please fill all fields', 'err');
+  try {
+    const d = await api('/auth/login', 'POST', { email, password });
+    token = d.accessToken;
+    userEmail = email;
+    localStorage.setItem('fx_token', token);
+    localStorage.setItem('fx_email', email);
+    showApp();
+  } catch (e) { showMsg('l-msg', e.message, 'err'); }
+}
+
+function showApp() {
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  document.getElementById('u-email').textContent = userEmail || '';
+  nav('wallet');
+}
+
+function logout() {
+  localStorage.removeItem('fx_token');
+  localStorage.removeItem('fx_email');
+  token = null;
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('auth-screen').style.display = 'block';
+  switchTab('login');
+}
+
+// ─── Navigation ───────────────────────────────────────────────────────────────
+function nav(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  document.getElementById('nav-' + page).classList.add('active');
+  if (page === 'wallet') loadWallet();
+  if (page === 'history') { txCursorStack = [null]; txCurrentCursor = null; loadTx(); }
+  if (page === 'rates') loadRates();
+  if (page === 'trade') loadRatesForPreview();
+}
+
+// ─── Wallet ───────────────────────────────────────────────────────────────────
+async function loadWallet() {
+  try {
+    const d = await api('/wallet');
+    const colors = { NGN:'ngn', USD:'usd', EUR:'eur', GBP:'gbp' };
+    const symbols = { NGN:'₦', USD:'$', EUR:'€', GBP:'£' };
+    const all = ['NGN','USD','EUR','GBP'];
+    const map = {};
+    d.balances.forEach(b => map[b.currency] = b.balance);
+    document.getElementById('balance-cards').innerHTML = all.map(c =>
+      `<div class="card ${colors[c]}">
+        <div class="label">${c}</div>
+        <div class="value">${symbols[c]}${(map[c]||0).toLocaleString('en',{minimumFractionDigits:2,maximumFractionDigits:4})}</div>
+      </div>`
+    ).join('');
+  } catch (e) {
+    document.getElementById('balance-cards').innerHTML = `<div style="color:var(--red)">${e.message}</div>`;
+  }
+}
+
+// ─── Fund ─────────────────────────────────────────────────────────────────────
+async function doFund() {
+  const currency = document.getElementById('f-cur').value;
+  const amount = parseFloat(document.getElementById('f-amt').value);
+  if (!amount || amount <= 0) return showMsg('f-msg', 'Enter a valid amount', 'err');
+  try {
+    const d = await api('/wallet/fund', 'POST', { currency, amount });
+    showMsg('f-msg', `✅ Funded! New ${currency} balance: ${d.newBalance.toLocaleString()}`, 'ok');
+  } catch (e) { showMsg('f-msg', e.message, 'err'); }
+}
+
+// ─── Convert / Trade with preview ────────────────────────────────────────────
+async function loadRatesForPreview() {
+  try {
+    const d = await api('/fx/rates?base=NGN');
+    liveRates = d.rates;
+    liveRates['NGN'] = 1;
+  } catch (e) {}
+}
+
+async function updatePreview() {
+  const from = document.getElementById('t-from').value;
+  const to = document.getElementById('t-to').value;
+  const amount = parseFloat(document.getElementById('t-amt').value);
+  const preview = document.getElementById('rate-preview');
+
+  if (!amount || amount <= 0 || from === to) { preview.style.display = 'none'; return; }
+
+  try {
+    const d = await api(`/fx/rates?base=${from}`);
+    const rate = d.rates[to];
+    if (!rate) { preview.style.display = 'none'; return; }
+    const received = (amount * rate).toFixed(6);
+    const syms = { NGN:'₦', USD:'$', EUR:'€', GBP:'£' };
+    document.getElementById('prev-rate').textContent = `1 ${from} = ${rate} ${to}`;
+    document.getElementById('prev-from').textContent = `${syms[from]}${amount.toLocaleString()} ${from}`;
+    document.getElementById('prev-to').textContent = `${syms[to]}${parseFloat(received).toLocaleString('en',{minimumFractionDigits:2,maximumFractionDigits:6})} ${to}`;
+    document.getElementById('prev-ts').textContent = `Rate as of ${new Date(d.timestamp).toLocaleTimeString()}`;
+    preview.style.display = 'block';
+  } catch (e) { preview.style.display = 'none'; }
+}
+
+function setTab(mode, el) {
+  tradeMode = mode;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('trade-title').textContent = mode === 'convert' ? 'Convert Currency' : 'Trade (Market Order)';
+}
+
+async function doTrade() {
+  const fromCurrency = document.getElementById('t-from').value;
+  const toCurrency = document.getElementById('t-to').value;
+  const amount = parseFloat(document.getElementById('t-amt').value);
+  if (!amount || amount <= 0) return showMsg('t-msg', 'Enter a valid amount', 'err');
+  if (fromCurrency === toCurrency) return showMsg('t-msg', 'From and To must be different currencies', 'err');
+  try {
+    const endpoint = tradeMode === 'convert' ? '/wallet/convert' : '/wallet/trade';
+    const body = tradeMode === 'convert'
+      ? { fromCurrency, toCurrency, amount }
+      : { fromCurrency, toCurrency, amount, orderType: 'MARKET' };
+    const d = await api(endpoint, 'POST', body);
+    const syms = { NGN:'₦', USD:'$', EUR:'€', GBP:'£' };
+    showMsg('t-msg',
+      `✅ Success! ${syms[d.to.currency]}${d.to.amount.toFixed(6)} ${d.to.currency} received at rate ${d.rate}`,
+      'ok'
+    );
+    document.getElementById('rate-preview').style.display = 'none';
+  } catch (e) { showMsg('t-msg', e.message, 'err'); }
+}
+
+// ─── Transfer ─────────────────────────────────────────────────────────────────
+async function doTransfer() {
+  const recipientEmail = document.getElementById('tr-email').value.trim();
+  const currency = document.getElementById('tr-cur').value;
+  const amount = parseFloat(document.getElementById('tr-amt').value);
+  if (!recipientEmail) return showMsg('tr-msg', 'Enter recipient email', 'err');
+  if (!amount || amount <= 0) return showMsg('tr-msg', 'Enter a valid amount', 'err');
+  try {
+    const d = await api('/wallet/transfer', 'POST', { recipientEmail, currency, amount });
+    showMsg('tr-msg', `✅ Transferred ${amount.toLocaleString()} ${currency} to ${d.to}`, 'ok');
+  } catch (e) { showMsg('tr-msg', e.message, 'err'); }
+}
+
+// ─── Transaction history (cursor pagination) ──────────────────────────────────
+let txNextCursor = null;
+let txHasMore = false;
+
+async function loadTx(cursor = null) {
+  try {
+    const params = cursor ? `?cursor=${cursor}&limit=10` : '?limit=10';
+    const d = await api('/transactions' + params);
+    txNextCursor = d.meta.nextCursor;
+    txHasMore = d.meta.hasMore;
+
+    document.getElementById('tx-info').textContent =
+      `${d.data.length} records${d.meta.total ? ' of ' + d.meta.total : ''}`;
+    document.getElementById('tx-prev').disabled = txCursorStack.length <= 1;
+    document.getElementById('tx-next').disabled = !txHasMore;
+
+    if (!d.data.length) {
+      document.getElementById('tx-body').innerHTML =
+        '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--muted)">No transactions yet</td></tr>';
+      return;
+    }
+    document.getElementById('tx-body').innerHTML = d.data.map(tx => `
+      <tr>
+        <td>${new Date(tx.createdAt).toLocaleString()}</td>
+        <td><span class="badge ${tx.type}">${tx.type.replace('_',' ')}</span></td>
+        <td>${tx.fromCurrency}</td>
+        <td>${tx.toCurrency || '—'}</td>
+        <td>${parseFloat(tx.amount).toLocaleString('en',{minimumFractionDigits:2})}</td>
+        <td>${tx.rate ? parseFloat(tx.rate).toFixed(6) : '—'}</td>
+        <td><span class="badge ${tx.status}">${tx.status}</span></td>
+      </tr>`).join('');
+  } catch (e) {
+    document.getElementById('tx-body').innerHTML =
+      `<tr><td colspan="7" style="color:var(--red);padding:16px">${e.message}</td></tr>`;
+  }
+}
+
+function txNext() {
+  if (!txHasMore || !txNextCursor) return;
+  txCursorStack.push(txNextCursor);
+  loadTx(txNextCursor);
+}
+
+function txPrev() {
+  if (txCursorStack.length <= 1) return;
+  txCursorStack.pop();
+  const prev = txCursorStack[txCursorStack.length - 1];
+  loadTx(prev);
+}
+
+// ─── FX Rates ─────────────────────────────────────────────────────────────────
+async function loadRates() {
+  try {
+    const d = await api('/fx/rates?base=NGN');
+    const flags = { USD:'🇺🇸', EUR:'🇪🇺', GBP:'🇬🇧' };
+    document.getElementById('rates-grid').innerHTML =
+      Object.entries(d.rates).map(([cur, rate]) => `
+        <div class="rate-card">
+          <div class="pair">${flags[cur]||''} NGN → ${cur}</div>
+          <div class="rate">${Number(rate).toFixed(8)}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:6px">1 NGN = ${rate} ${cur}</div>
+        </div>`).join('') +
+      `<div class="rate-card">
+        <div class="pair" style="color:var(--muted)">Last updated</div>
+        <div style="font-size:13px;margin-top:6px">${new Date(d.timestamp).toLocaleString()}</div>
+      </div>`;
+  } catch (e) {
+    document.getElementById('rates-grid').innerHTML = `<div style="color:var(--red)">${e.message}</div>`;
+  }
+}
+
+// Auto-login if token exists
+if (token) showApp();
+</script>
+</body>
+</html>

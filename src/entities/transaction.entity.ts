@@ -1,3 +1,4 @@
+// ─── transaction.entity.ts ───────────────────────────────────────────────────────
 import {
   Entity, PrimaryGeneratedColumn, Column,
   CreateDateColumn, ManyToOne, JoinColumn, Index,
@@ -6,8 +7,8 @@ import { Currency, TransactionType, TransactionStatus } from '../common/enums';
 import { User } from './user.entity';
 
 @Entity('transactions')
-@Index(['userId'])
-@Index(['createdAt'])
+@Index(['userId', 'createdAt']) // composite index for cursor pagination
+@Index(['createdAt'])           // admin list ordering
 export class Transaction {
   @PrimaryGeneratedColumn('uuid')
   id: string;

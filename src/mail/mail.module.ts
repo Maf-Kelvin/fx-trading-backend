@@ -13,21 +13,19 @@ import { MailService } from './mail.service';
       inject: [ConfigService],
       useFactory: (cfg: ConfigService) => ({
         transport: {
-          host: cfg.get('mail.host'),
+          host: cfg.get<string>('mail.host'),
           port: cfg.get<number>('mail.port'),
-          secure: false,
+          secure: false,         // false = STARTTLS on port 587
+          requireTLS: true,      // forces STARTTLS upgrade
           auth: {
-            user: cfg.get('mail.user'),
-            pass: cfg.get('mail.pass'),
+            user: cfg.get<string>('mail.user'),
+            pass: cfg.get<string>('mail.pass'),
           },
-          // Suppress startup verification — prevents boot error when SMTP
-          // credentials are not configured (safe for local development)
-          ignoreTLS: cfg.get('app.nodeEnv') !== 'production',
         },
         verifyTransporters: false,
-        defaults: { from: cfg.get('mail.from') },
+        defaults: { from: `"FX Trading" <${cfg.get<string>('mail.from')}>` },
         template: {
-          dir: join(__dirname, '..', 'mail', 'templates'),
+          dir: join(process.cwd(), 'dist', 'mail', 'templates'),
           adapter: new HandlebarsAdapter(),
           options: { strict: true },
         },

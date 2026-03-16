@@ -1,3 +1,5 @@
+// ─── main.ts ───────────────────────────────────────────────────────
+
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
@@ -5,6 +7,13 @@ import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  // Enable CORS for dashboard HTML files opened from browser
+  app.enableCors({
+    origin: '*',
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-ID'],
+  });
 
   // Global validation pipe — strips unknown fields, auto-transforms types
   app.useGlobalPipes(
